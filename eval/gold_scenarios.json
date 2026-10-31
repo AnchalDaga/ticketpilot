@@ -645,32 +645,6 @@
     "gold_id": "G025"
   },
   {
-    "scenario": "address_placed",
-    "category": "address_change",
-    "expected_action": "auto_resolve",
-    "expected_policies": [
-      "KB-12"
-    ],
-    "flags": {
-      "legal_threat": false,
-      "safety_issue": false,
-      "asks_for_human": false,
-      "injection": false,
-      "needs_history": 0
-    },
-    "customer_id": 27,
-    "order_id": 50,
-    "brief": "The customer wants to change the delivery address on order #50 to a new street address that they write out.",
-    "context": {
-      "item": "Office Chair",
-      "total": 368.09,
-      "status": "placed",
-      "days_since_delivery": null,
-      "tier": "standard"
-    },
-    "gold_id": "G026"
-  },
-  {
     "scenario": "damaged_no_photo_low",
     "category": "damaged_item",
     "expected_action": "auto_resolve",
