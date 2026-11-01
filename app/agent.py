@@ -9,7 +9,7 @@ from pydantic import BaseModel, ValidationError
 from app.classifier import _extract_json, classify
 from app.db import get_conn
 from app.llm import chat_tools
-from app.tools import TOOL_SPECS, run_tool
+from app.tools import TOOL_SPECS, _to_int, run_tool
 
 MAX_STEPS = 8
 HANDOFF_REPLY = "Thanks for contacting us. A member of our team will review your ticket and follow up with you."
@@ -70,7 +70,8 @@ def _trace(ticket_id: int, step: int, kind: str, detail, tokens: int | None = No
     conn.close()
 
 
-def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_STEPS) -> dict:
+def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_STEPS,
+              guardrails: bool = True) -> dict:
     started = time.time()
     conn = get_conn()
     ticket = conn.execute("SELECT customer_id, body FROM tickets WHERE id = ?", (ticket_id,)).fetchone()
@@ -102,8 +103,32 @@ def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_
     final = None
     errors = 0
     stop_reason = "step limit reached"
+    passed_checks: set = set()
 
-    for step in range(1, max_steps + 1):
+    # Guardrails: rules enforced by code, not by the prompt. The LLM loop is skipped when one fires.
+    forced = None
+    if guardrails:
+        if cls.legal_threat:
+            forced = ("customer mentions legal action (KB-16)", "legal", ["KB-16"])
+        elif cls.safety_issue:
+            forced = ("possible product safety issue (KB-17, KB-16)", "safety", ["KB-17", "KB-16"])
+        elif cls.asks_for_human:
+            forced = ("customer asked for a human (KB-16)", "support", ["KB-16"])
+        else:
+            hist = json.loads(run_tool("get_customer_history", {}, ctx))
+            _trace(ticket_id, 0, "tool", {"name": "get_customer_history", "args": {}, "result": hist})
+            if hist.get("repeat_customer"):
+                forced = ("3 or more tickets in the last 30 days (KB-16)", "support", ["KB-16"])
+    if forced:
+        reason, team, cited = forced
+        run_tool("escalate", {"reason": reason, "team": team}, ctx)
+        tools_used.append("escalate")
+        escalated = True
+        final = FinalAnswer(decision="escalate", reply=HANDOFF_REPLY, policies_cited=cited,
+                            reasoning=f"Guardrail: {reason}")
+        _trace(ticket_id, 0, "guardrail", {"forced_escalation": reason})
+
+    for step in (range(1, max_steps + 1) if final is None else ()):
         try:
             r = chat_tools(messages, TOOL_SPECS + [FINAL_TOOL], provider=provider)
         except openai.BadRequestError as e:
@@ -137,6 +162,8 @@ def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_
                     args = json.loads(c["arguments"] or "{}")
                 except json.JSONDecodeError:
                     args = None
+                if not isinstance(args, dict):
+                    args = None
                 if c["name"] == "submit_answer" and args is not None:
                     try:
                         final = FinalAnswer(**args)
@@ -146,12 +173,19 @@ def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_
                         result = json.dumps({"error": f"invalid answer: {e}"[:300]})
                 elif args is None:
                     result = json.dumps({"error": "arguments were not valid JSON"})
+                elif (guardrails and c["name"] == "create_refund_request"
+                      and _to_int(args.get("order_id")) not in passed_checks):
+                    result = json.dumps({"ok": False, "error": (
+                        "blocked: check_refund_eligibility must report can_approve_without_human = true "
+                        "for this order before a refund request is allowed. If it does not, escalate instead.")})
                 else:
                     result = run_tool(c["name"], args, ctx)
                 parsed = json.loads(result)
                 tools_used.append(c["name"])
                 if c["name"] == "escalate" and parsed.get("ok"):
                     escalated = True
+                if c["name"] == "check_refund_eligibility" and parsed.get("can_approve_without_human"):
+                    passed_checks.add(parsed.get("order_id"))
                 _trace(ticket_id, step, "tool", {"name": c["name"], "args": args, "result": parsed})
                 messages.append({"role": "tool", "tool_call_id": c["id"], "content": result})
             if final is not None:
@@ -194,6 +228,7 @@ def run_agent(ticket_id: int, provider: str | None = None, max_steps: int = MAX_
         "ticket_id": ticket_id,
         "decision": decision,
         "decision_mismatch": final.decision != decision,
+        "forced_by_guardrail": forced is not None,
         "reply": final.reply,
         "policies_cited": final.policies_cited,
         "reasoning": final.reasoning,

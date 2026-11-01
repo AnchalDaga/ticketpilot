@@ -20,7 +20,7 @@ args = sys.argv[1:]
 provider = args.pop(0) if args and args[0] in ("groq", "gemini") else None
 
 if args:
-    picks = [next(g for g in gold if g["gold_id"] == a) for a in args]
+    picks = [next(g for g in gold if a in (g["gold_id"], g["scenario"])) for a in args]
 else:
     picks = [next(g for g in gold if g["scenario"] == s)
              for s in ("damaged_photo_low", "damaged_high_value", "shipping_question")]
