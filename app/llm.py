@@ -78,3 +78,50 @@ def chat(messages, provider=None, model=None, temperature=0.0, use_cache=True) -
         conn.commit()
     conn.close()
     return result
+
+
+def chat_tools(messages, tools, provider=None, model=None, temperature=0.0, use_cache=True) -> dict:
+    provider = provider or os.getenv("LLM_PROVIDER", "groq")
+    if provider not in PROVIDERS:
+        raise ValueError(f"Unknown provider '{provider}'. Use one of: {list(PROVIDERS)}")
+    cfg = PROVIDERS[provider]
+    model = model or cfg["model"]
+
+    key = _cache_key(provider, model, {"messages": messages, "tools": tools}, temperature)
+    conn = _cache_conn()
+    if use_cache:
+        row = conn.execute("SELECT value FROM cache WHERE key = ?", (key,)).fetchone()
+        if row:
+            conn.close()
+            result = json.loads(row[0])
+            result["cached"] = True
+            return result
+
+    api_key = os.getenv(cfg["key_env"])
+    if not api_key:
+        conn.close()
+        raise RuntimeError(f"{cfg['key_env']} is missing from your .env file")
+
+    client = OpenAI(api_key=api_key, base_url=cfg["base_url"])
+    resp = client.chat.completions.create(
+        model=model, messages=messages, tools=tools, temperature=temperature
+    )
+    msg = resp.choices[0].message
+    usage = resp.usage
+    result = {
+        "content": msg.content or "",
+        "tool_calls": [
+            {"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments or "{}"}
+            for tc in (msg.tool_calls or [])
+        ],
+        "provider": provider,
+        "model": model,
+        "prompt_tokens": usage.prompt_tokens if usage else 0,
+        "completion_tokens": usage.completion_tokens if usage else 0,
+        "cached": False,
+    }
+    if use_cache:
+        conn.execute("INSERT OR REPLACE INTO cache (key, value) VALUES (?, ?)", (key, json.dumps(result)))
+        conn.commit()
+    conn.close()
+    return result
