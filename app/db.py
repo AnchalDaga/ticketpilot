@@ -1,8 +1,9 @@
 import sqlite3
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "ticketpilot.db"
+DB_PATH = Path(os.getenv("TICKETPILOT_DB", ROOT / "data" / "ticketpilot.db"))
 SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 
