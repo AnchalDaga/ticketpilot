@@ -65,6 +65,8 @@ def main():
     gold = json.loads((ROOT / "eval" / "gold_tickets.json").read_text())
     if a.set == "dev":
         wanted = dev_ids(gold)
+    elif a.set == "heldout":
+        wanted = {g["gold_id"] for g in gold} - dev_ids(gold)
     elif a.set == "full":
         wanted = {g["gold_id"] for g in gold}
     else:

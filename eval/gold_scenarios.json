@@ -232,7 +232,7 @@
   {
     "scenario": "return_outside_window",
     "category": "return_request",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-01",
       "KB-08"
@@ -791,7 +791,7 @@
   {
     "scenario": "damaged_outside_window",
     "category": "damaged_item",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-02",
       "KB-08"
@@ -818,7 +818,7 @@
   {
     "scenario": "damaged_outside_window",
     "category": "damaged_item",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-02",
       "KB-08"
@@ -1466,7 +1466,7 @@
   {
     "scenario": "return_outside_window",
     "category": "return_request",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-01",
       "KB-08"
@@ -1546,7 +1546,7 @@
   {
     "scenario": "return_outside_window",
     "category": "return_request",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-01",
       "KB-08"
@@ -1599,7 +1599,7 @@
   {
     "scenario": "damaged_outside_window",
     "category": "damaged_item",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-02",
       "KB-08"
@@ -2190,7 +2190,7 @@
   {
     "scenario": "return_outside_window",
     "category": "return_request",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-01",
       "KB-08"
@@ -2597,7 +2597,7 @@
   {
     "scenario": "damaged_outside_window",
     "category": "damaged_item",
-    "expected_action": "escalate",
+    "expected_action": "auto_resolve",
     "expected_policies": [
       "KB-02",
       "KB-08"

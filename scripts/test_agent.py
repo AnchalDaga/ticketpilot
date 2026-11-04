@@ -37,6 +37,7 @@ for g in picks:
     print(f"DECISION: {res['decision']}   (expected {g['expected_action']})")
     print(f"TOOLS: {' -> '.join(res['tools_used']) or 'none'}")
     print(f"REFUND REQUEST: {res['refund_amount']}")
+    print(f"DB CHANGES: {res['db_changes']}")
     print(f"POLICIES CITED: {res['policies_cited']}")
     print(f"REASONING: {res['reasoning']}")
     print(f"REPLY: {res['reply']}")
