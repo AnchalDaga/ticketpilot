@@ -3,3 +3,4 @@ __pycache__/
 .env
 data/*.db
 .pytest_cache/
+data/demo_usage.json
